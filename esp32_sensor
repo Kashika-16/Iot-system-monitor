@@ -1,0 +1,42 @@
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include "DHT.h"
+
+#define DHTPIN 4
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+
+const char* ssid = "YOUR_WIFI";
+const char* password = "YOUR_PASS";
+const char* mqtt_server = "192.168.1.100";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup_wifi() {
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+}
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+}
+
+void loop() {
+  if (!client.connected()) {
+    client.connect("esp32_01");
+  }
+
+  float t = dht.readTemperature();
+  float h = dht.readHumidity();
+
+  char payload[128];
+  sprintf(payload, "{\"temp\": %.2f, \"hum\": %.2f}", t, h);
+
+  client.publish("sensors/esp32_01/telemetry", payload);
+
+  delay(5000);
+}
